@@ -1,0 +1,90 @@
+# Aiprise Proxy Configuration
+# This configuration provides transparent proxying for Aiprise KYC endpoints
+
+routes:
+  # Main verification endpoint
+  - name: aiprise-verify
+    path_prefix: /v1/verify
+    upstream: https://api.aiprise.com
+    upstream_path_prefix: /api/v1/verify
+    preserve_host: false
+    timeout: 30s
+    tls_mode: terminate
+    headers:
+      # Strip all proxy-identifying headers from client request
+      strip_incoming:
+        - "X-Forwarded-*"
+        - "X-Real-IP"
+        - "Via"
+        - "Forwarded"
+        - "X-Request-Id"
+        - "X-Envoy-*"
+        - "CF-*"  # CloudFlare headers if present
+      # Strip server-identifying headers from upstream response
+      strip_outgoing:
+        - "Server"
+        - "X-Powered-By"
+        - "X-Runtime"
+        - "X-Envoy-*"
+      # Add Aiprise API authentication
+      add_upstream:
+        X-API-Key: ${AIPRISE_API_KEY}
+
+  # Callback endpoint for Aiprise webhooks
+  - name: aiprise-callback
+    path_prefix: /v1/aiprise-callback
+    upstream: https://api.aiprise.com
+    upstream_path_prefix: /api/v1/callback
+    preserve_host: false
+    timeout: 10s
+    tls_mode: terminate
+    headers:
+      strip_incoming:
+        - "X-Forwarded-*"
+        - "Via"
+      strip_outgoing:
+        - "Server"
+        - "X-Powered-By"
+      add_upstream:
+        X-API-Key: ${AIPRISE_API_KEY}
+
+# HTTP transport configuration
+transport:
+  max_idle_conns: 100
+  max_idle_conns_per_host: 10
+  idle_conn_timeout: 90s
+  dial_timeout: 5s
+  tls_handshake_timeout: 10s
+  response_header_timeout: 30s
+  expect_continue_timeout: 1s
+  disable_keep_alives: false
+  disable_compression: false
+
+# TLS configuration
+tls:
+  # Downstream (client-facing) TLS certificate
+  cert_file: /etc/mimic-proxy/tls/cert.pem
+  key_file: /etc/mimic-proxy/tls/key.pem
+
+  # Upstream (Aiprise) TLS verification
+  ca_file: /etc/ssl/certs/ca-certificates.crt
+  insecure_skip_verify: false
+  min_version: "1.2"
+  cipher_suites:
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+
+# Prometheus metrics
+metrics:
+  enabled: true
+  path: /metrics
+  port: 9090
+  namespace: mimic_proxy_aiprise
+
+# Structured logging
+logger:
+  level: info
+  format: json
+  output: stdout

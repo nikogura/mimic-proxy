@@ -1,0 +1,138 @@
+# CEX Development Proxy Configuration
+# This configuration provides transparent IP whitelisting bypass for CEX development
+
+routes:
+  # Binance API
+  - name: binance-api
+    path_prefix: /binance/api
+    upstream: https://api.binance.com
+    upstream_path_prefix: /api
+    preserve_host: false
+    timeout: 30s
+    tls_mode: terminate
+    headers:
+      strip_incoming:
+        - "X-Forwarded-*"
+        - "Via"
+        - "X-Real-IP"
+        - "CF-*"
+      strip_outgoing:
+        - "Server"
+        - "X-Powered-By"
+      add_upstream:
+        X-MBX-APIKEY: ${BINANCE_API_KEY}
+
+  # Binance WebSocket proxy (for streaming market data)
+  - name: binance-ws
+    path_prefix: /binance/ws
+    upstream: wss://stream.binance.com
+    upstream_path_prefix: /ws
+    preserve_host: false
+    timeout: 300s  # Long timeout for WebSocket
+    tls_mode: terminate
+
+  # OKX API
+  - name: okx-api
+    path_prefix: /okx/api
+    upstream: https://www.okx.com
+    upstream_path_prefix: /api
+    preserve_host: false
+    timeout: 30s
+    tls_mode: terminate
+    headers:
+      strip_incoming:
+        - "X-Forwarded-*"
+        - "Via"
+      strip_outgoing:
+        - "Server"
+      add_upstream:
+        OK-ACCESS-KEY: ${OKX_API_KEY}
+        OK-ACCESS-SIGN: ${OKX_API_SIGN}
+        OK-ACCESS-TIMESTAMP: ${OKX_API_TIMESTAMP}
+        OK-ACCESS-PASSPHRASE: ${OKX_API_PASSPHRASE}
+
+  # Bybit API
+  - name: bybit-api
+    path_prefix: /bybit/v5
+    upstream: https://api.bybit.com
+    upstream_path_prefix: /v5
+    preserve_host: false
+    timeout: 30s
+    tls_mode: terminate
+    headers:
+      strip_incoming:
+        - "X-Forwarded-*"
+      strip_outgoing:
+        - "Server"
+      add_upstream:
+        X-BAPI-API-KEY: ${BYBIT_API_KEY}
+        X-BAPI-SIGN: ${BYBIT_API_SIGN}
+        X-BAPI-TIMESTAMP: ${BYBIT_API_TIMESTAMP}
+
+  # Gate.io API
+  - name: gate-api
+    path_prefix: /gate/api
+    upstream: https://api.gateio.ws
+    upstream_path_prefix: /api
+    preserve_host: false
+    timeout: 30s
+    tls_mode: terminate
+    headers:
+      strip_incoming:
+        - "X-Forwarded-*"
+      strip_outgoing:
+        - "Server"
+      add_upstream:
+        KEY: ${GATE_API_KEY}
+        SIGN: ${GATE_API_SIGN}
+        Timestamp: ${GATE_API_TIMESTAMP}
+
+  # B2C2 OTC API
+  - name: b2c2-api
+    path_prefix: /b2c2
+    upstream: https://api.uat.b2c2.net
+    upstream_path_prefix: /
+    preserve_host: false
+    timeout: 30s
+    tls_mode: terminate
+    headers:
+      strip_incoming:
+        - "X-Forwarded-*"
+        - "Via"
+      strip_outgoing:
+        - "Server"
+      add_upstream:
+        Authorization: "Token ${B2C2_API_TOKEN}"
+
+# HTTP transport configuration optimized for trading
+transport:
+  max_idle_conns: 200
+  max_idle_conns_per_host: 20
+  idle_conn_timeout: 90s
+  dial_timeout: 10s
+  tls_handshake_timeout: 15s
+  response_header_timeout: 30s
+  expect_continue_timeout: 1s
+  disable_keep_alives: false
+  disable_compression: false
+
+# TLS configuration
+tls:
+  cert_file: /etc/mimic-proxy/tls/cert.pem
+  key_file: /etc/mimic-proxy/tls/key.pem
+  ca_file: /etc/ssl/certs/ca-certificates.crt
+  insecure_skip_verify: false
+  min_version: "1.2"
+
+# Prometheus metrics
+metrics:
+  enabled: true
+  path: /metrics
+  port: 9090
+  namespace: mimic_proxy_cefi
+
+# Structured logging
+logger:
+  level: info
+  format: json
+  output: stdout
